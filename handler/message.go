@@ -39,3 +39,17 @@ func (h *Handler) statusMessage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, mes)
 }
+
+/*
+func (h *Handler) readMessageFromKafka(c *gin.Context) {
+	ctx := context.Background()
+	message, err := h.services.ReadMessageFromKafka(ctx)
+	if err != nil {
+		logrus.Errorf("Failed to read message from Kafka: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read message"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": message})
+}
+*/

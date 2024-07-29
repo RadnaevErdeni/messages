@@ -4,6 +4,7 @@ import (
 	ms "messageService"
 	"messageService/db/migrations"
 	"messageService/handler"
+	"messageService/kafka"
 	"messageService/repository"
 	"messageService/service"
 	"os"
@@ -30,6 +31,8 @@ func main() {
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
+	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 	cnPort := os.Getenv("CON_PORT")
 	cnHost := os.Getenv("CON_HOST")
 
@@ -46,6 +49,9 @@ func main() {
 	}
 
 	repos := repository.NewRepository(db)
+	producer := kafka.NewProducer([]string{kafkaBrokers}, kafkaTopic)
+	consumer := kafka.NewConsumer([]string{kafkaBrokers}, "message-group", kafkaTopic, repos.Kafka)
+
 	services := service.NewService(repos)
 	handlers := handler.NewHandler(services)
 
