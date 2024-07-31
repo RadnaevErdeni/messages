@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -12,8 +10,7 @@ type errorz struct {
 }
 
 func errResponse(c *gin.Context, statusCode int, mes string) {
-	log.Fatal(mes)
-	c.AbortWithStatusJSON(statusCode, errorz{Mes: mes})
+	c.JSON(statusCode, errorz{Mes: mes})
 }
 func logError(err error, mes string) {
 	if err != nil {

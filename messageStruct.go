@@ -8,5 +8,7 @@ type MessageDB struct {
 	Date_create    string  `json:"date_create" db:"date_create"`
 }
 type NewMessage struct {
-	Message string `json:"message"`
+	Id      int    `json:"id"`
+	Key     string `json:"key"`
+	Payload string `json:"message"`
 }

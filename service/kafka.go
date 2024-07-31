@@ -2,24 +2,30 @@ package service
 
 import (
 	"context"
-	"messageService/repository"
+	"fmt"
+	ms "messageService"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaService struct {
-	repo repository.Kafka
+	writer *kafka.Writer
 }
 
-func NewKafkaService(repo repository.Kafka) *KafkaService {
-	return &KafkaService{
-		repo: repo,
-	}
+func NewKafkaService(writer *kafka.Writer) *KafkaService {
+	return &KafkaService{writer: writer}
 }
 
-/*
-	func (s *KafkaService) ReadMessageFromKafka(ctx context.Context) (string, error) {
-		return s.repo.ReadMessageFromKafka(ctx)
+func (s *KafkaService) SendToKafka(ctx context.Context, message ms.NewMessage) error {
+	kafkaMessage := kafka.Message{
+		Key:   []byte(message.Key),
+		Value: []byte(message.Payload),
 	}
-*/
-func (s *KafkaService) UpdateMessageStatus(ctx context.Context, id string, status string) error {
-	return s.repo.UpdateMessageStatus(ctx, id, status)
+	fmt.Println(ctx, message, "KafkaMessage", kafkaMessage)
+	err := s.writer.WriteMessages(ctx, kafkaMessage)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

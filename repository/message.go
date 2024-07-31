@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	ms "messageService"
 
@@ -18,7 +19,7 @@ func NewMessage(db *sqlx.DB) *MessageDB {
 func (r *MessageDB) CreateMessage(mes ms.NewMessage) (int, error) {
 	var id int
 	createQuery := fmt.Sprintf("INSERT INTO %s (message, status,date_create) values ($1, 'processing',Now()) RETURNING id", messageTable)
-	row := r.db.QueryRow(createQuery, mes.Message)
+	row := r.db.QueryRow(createQuery, mes.Payload)
 	err := row.Scan(&id)
 	if err != nil {
 		return 0, err
@@ -32,4 +33,19 @@ func (r *MessageDB) StatusMessage() ([]ms.MessageDB, error) {
 		return nil, err
 	}
 	return messages, nil
+}
+
+func (r *MessageDB) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := fmt.Sprintf("UPDATE %s SET status = $1,processed_time=Now() WHERE id = $2", messageTable)
+	_, err := r.db.ExecContext(ctx, query, status, id)
+	return err
+}
+
+func (r *MessageDB) UpdateStatusErr(ctx context.Context, id int, status string) error {
+	query := fmt.Sprintf("UPDATE %s SET status = $1,processed_time=Now() WHERE id = $2", messageTable)
+	_, err := r.db.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return err
+	}
+	return nil
 }

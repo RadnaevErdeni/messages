@@ -1,26 +1,23 @@
 package main
 
 import (
+	"log"
 	ms "messageService"
-	"messageService/db/migrations"
 	"messageService/handler"
-	"messageService/kafka"
 	"messageService/repository"
 	"messageService/service"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	logrus.Info("Starting application")
-	err := migrations.StartDBmain()
-	if err != nil {
-		logrus.Fatalf("Error initializing database 1: %v", err)
-	}
-	err = godotenv.Load("connect.env")
+	err := godotenv.Load("connect.env")
 	if err != nil {
 		logrus.Fatalf("Failed to load .env file: %v", err)
 	}
@@ -36,23 +33,44 @@ func main() {
 	cnPort := os.Getenv("CON_PORT")
 	cnHost := os.Getenv("CON_HOST")
 
-	db, err := repository.DBC(repository.Conf{
+	conf := repository.Conf{
 		Host:     dbHost,
 		Port:     dbPort,
 		Username: dbUsername,
-		Password: dbPassword,
 		BDname:   dbName,
+		Password: dbPassword,
 		SSLMode:  dbSSLMode,
-	})
-	if err != nil {
-		logrus.Fatalf("Failed to initialize the database: %v", err)
 	}
 
-	repos := repository.NewRepository(db)
-	producer := kafka.NewProducer([]string{kafkaBrokers}, kafkaTopic)
-	consumer := kafka.NewConsumer([]string{kafkaBrokers}, "message-group", kafkaTopic, repos.Kafka)
+	err = repository.WaitForDB(conf, 60*time.Second)
+	if err != nil {
+		log.Fatalf("Error waiting for database: %v", err)
+	}
 
-	services := service.NewService(repos)
+	err = repository.CreateDatabase(conf)
+	if err != nil {
+		log.Fatalf("Error creating database: %v", err)
+	}
+
+	db, err := repository.DBC(conf, conf.BDname)
+	if err != nil {
+		log.Fatalf("Error connecting to the new database: %v", err)
+	}
+	err = repository.Migrations(conf)
+	if err != nil {
+		log.Fatalf("Error initializing database 1: %v", err)
+	}
+	defer db.Close()
+
+	repos := repository.NewRepository(db)
+	kafkaWriter := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  []string{kafkaBrokers},
+		Topic:    kafkaTopic,
+		Balancer: &kafka.LeastBytes{},
+	})
+	defer kafkaWriter.Close()
+
+	services := service.NewService(repos, kafkaWriter)
 	handlers := handler.NewHandler(services)
 
 	srv := new(ms.Server)

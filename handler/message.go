@@ -21,6 +21,27 @@ func (h *Handler) createMessage(c *gin.Context) {
 		errResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+	message := ms.NewMessage{
+		Id:      id,
+		Key:     "",
+		Payload: input.Payload,
+	}
+
+	err = h.services.SendToKafka(c.Request.Context(), message)
+	if err != nil {
+		err = h.services.UpdateStatusErr(c.Request.Context(), id, "error")
+		logError(err, "Failed to send message to Kafka")
+		errResponse(c, http.StatusInternalServerError, "Failed to send message to Kafka")
+		return
+	} else {
+		err = h.services.Message.UpdateStatus(c.Request.Context(), id, "processed")
+		if err != nil {
+			err = h.services.UpdateStatusErr(c.Request.Context(), id, "error")
+			logError(err, "Failed to mark message as processed")
+			errResponse(c, http.StatusInternalServerError, "Failed to mark message as processed")
+			return
+		}
+	}
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"id": id,
 	})
